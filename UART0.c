@@ -67,17 +67,3 @@ void UART0_writeChar(unsigned char c){
 	while ((UART0_S1 & (1<<7)) == 0);
 	UART0_D = c;
 }
-
-/*void UART0_IRQHandler(){
-	if (UART0_S1 & (1<<5)){
-		char temp = UART0_D;
-		if (temp != 13){
-			dato_read[ir_u0] = temp;
-			ir_u0++;
-		}else{
-			dato_read[ir_u0] = '\0';
-			ir_u0 = 0;
-			messageComplete = 1;
-		}
-	}
-}*/

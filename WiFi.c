@@ -11,7 +11,8 @@
 #include "TPM2.h"
 #include "LPTMR.h"
 #include "TPM1.h"
-#include "i2c.h"
+#include "I2C.h"
+#include "ADC0.h"
 
 unsigned char id;
 extern unsigned char messageComplete;
@@ -21,6 +22,14 @@ extern unsigned long rpm1_promedio;
 extern unsigned long rpm2_promedio;
 extern unsigned short duty_cycle1;
 extern unsigned short duty_cycle2;
+extern unsigned int temperature;
+extern unsigned char temp_obtained;
+extern char send_accx[5];
+extern char send_accy[5];
+extern char send_accz[5];
+extern char send_gyrox[2];
+extern char send_gyroy[2];
+extern char send_gyroz[2];
 
 void WiFi_setup(){
 	UART1_write("AT+RST");                                    //Resetear el modulo
@@ -115,7 +124,7 @@ void WiFi_sendInt(int data){
 
 void WiFi_sendInfo(){
 	unsigned char len = 0;
-	char open[] = "AT+CIPSEND=i,le";
+	char open[] = "AT+CIPSEND=i,len";
 	char close[] = "AT+CIPCLOSE=i";
 	
 	//DISTANCIA
@@ -136,22 +145,43 @@ void WiFi_sendInfo(){
 	rpm2_promedio /= 10;
 	string_rpm2[1] = (rpm2_promedio%10) + '0';
 	string_rpm2[0] = (rpm2_promedio/10) + '0';
+	//TEMP
+	char string_temp[4] = {0};
+	unsigned int temp_cpy = temperature;
+	string_temp[3] = (temp_cpy%10) + '0';
+	temp_cpy /= 10;
+	string_temp[2] = (temp_cpy%10) + '0';
+	temp_cpy /= 10;
+	string_temp[1] = (temp_cpy%10) + '0';
+	string_temp[0] = (temp_cpy/10) + '0';
 	
-	char message[] = "{\"mensaje\":\"ESTADO DEL AGV\", \"distancia\":\"###\", \"RPM_der\":\"###\", \"RPM_izq\":\"###\"}";
+	char message[] = "<h1>ESTADO DEL AGV</h1> distancia: ###<br>RPM_der: ###<br>RPM_izq: ###<br>Last measured Temperature: ##.##<br>Gyro_X: ##<br>Gyro_Y: ##<br>Gyro_Z: ##";
 	len = sizeof(message)/sizeof(message[0]);
-	message[42] = string_dist[0];
-	message[43] = string_dist[1];
-	message[44] = string_dist[2];
-	message[59] = string_rpm1[0];
-	message[60] = string_rpm1[1];
-	message[61] = string_rpm1[2];
-	message[76] = string_rpm2[0];
-	message[77] = string_rpm2[1];
-	message[78] = string_rpm2[2];
+	message[35] = string_dist[0];
+	message[36] = string_dist[1];
+	message[37] = string_dist[2];
+	message[51] = string_rpm1[0];
+	message[52] = string_rpm1[1];
+	message[53] = string_rpm1[2];
+	message[67] = string_rpm2[0];
+	message[68] = string_rpm2[1];
+	message[69] = string_rpm2[2];
+	message[101] = string_temp[0];
+	message[102] = string_temp[1];
+	message[104] = string_temp[2];
+	message[105] = string_temp[3];
+	message[118] = send_gyrox[0];
+	message[119] = send_gyrox[1];
+	message[132] = send_gyroy[0];
+	message[133] = send_gyroy[1];
+	message[146] = send_gyroz[0];
+	message[147] = send_gyroz[1];
 	
 	open[11] = id;
-	open[13] = (len/10) + '0';
+	open[15] = (len%10) + '0';
+	len /= 10;
 	open[14] = (len%10) + '0';
+	open[13] = (len/10) + '0';
 	close[12] = id;
 	
 	UART1_write(open);
@@ -219,6 +249,11 @@ void WiFi_execute_instructions(){
 		case 'B':
 			GPIOE_PTOR |= (1<<4);                       //Toggle blue led
 			break;
+		case 't':
+		case 'T':
+			read_temperature();
+			while(!(temp_obtained));
+			break;
 		case 'w':
 		case 'W':                                      //Moving forward
 			duty_cycle1 = 60;                         
@@ -243,5 +278,6 @@ void WiFi_execute_instructions(){
 			break;
 	}
 	TPM1_update();
+	IMU_data();
 	WiFi_sendInfo();
 }

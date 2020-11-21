@@ -14,6 +14,10 @@
 #include "TPM2.h"
 #include "TPM1.h"
 #include "TPM0.h"
+#include "I2C.h"
+#include "ADC0.h"
+
+extern unsigned char temp_obtained;
 
 //MCGIRCLK = 4MHz ; MCGOUTCLK = MCGFLLCLK = 48MHz ; Bus Clock = 24MHz
 //UART0:MCGFLLCLK ; PIT=UART1:Bus Clock ; TPM0=TPM1=TPM2: MCGIRCLK
@@ -68,6 +72,13 @@ void PORT_init(){
 	//TPM1_CH1 (PWM)
 	PORTB_PCR0 = (3<<8);                           //TPM1_C0
 	PORTB_PCR1 = (3<<8);                           //TPM1_C1
+	
+	//I2C
+	PORTC_PCR8 = (2<<8);                           //I2C SCL
+	PORTC_PCR9 = (2<<8);                           //I2C SDA
+	
+	//ADC0
+	PORTB_PCR2 = (0<<8);                           //ADC0 CH12
 }
 
 char *strcat(char *dest, const char *src){
@@ -87,9 +98,13 @@ void Sys_init(){
 	UART0_init();
 	UART1_init();
 	WiFi_setup();
+	ADC0_init();
+	I2C_init();
 	TPM1_init();
 	TPM0_init();
 	TPM2_init();
 	pulso_sensor_us();
 	proximity_sensor();
+	read_temperature();
+	while(!(temp_obtained));
 }
